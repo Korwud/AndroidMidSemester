@@ -1,6 +1,7 @@
 package io.github.dekabrsky.androidMidSemester.presentation.matches
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,11 +16,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -28,6 +31,7 @@ import io.github.dekabrsky.androidMidSemester.R
 import io.github.dekabrsky.androidMidSemester.domain.model.Match
 import io.github.dekabrsky.androidMidSemester.presentation.ui.common.ErrorState
 import io.github.dekabrsky.androidMidSemester.presentation.ui.common.LoadingState
+import io.github.dekabrsky.androidMidSemester.presentation.ui.common.errorMessage
 import org.koin.androidx.compose.koinViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -39,17 +43,28 @@ private val TITLE_DATE_FORMAT =
 @Composable
 fun MatchesScreen(
     onMatchClick: (Match) -> Unit,
+    onTeamsClick: () -> Unit,
     viewModel: MatchesViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
-            MatchesTopBar(
-                date = state.date,
-                onPreviousDay = viewModel::previousDay,
-                onNextDay = viewModel::nextDay,
-            )
+            Column {
+                MatchesTopBar(
+                    date = state.date,
+                    onPreviousDay = viewModel::previousDay,
+                    onNextDay = viewModel::nextDay,
+                )
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    TextButton(
+                        onClick = onTeamsClick,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.teams_open))
+                    }
+                }
+            }
         },
     ) { innerPadding ->
         Box(
@@ -59,13 +74,29 @@ fun MatchesScreen(
         ) {
             when (val current = state) {
                 is MatchesUiState.Loading -> LoadingState()
-                is MatchesUiState.Error -> ErrorState(message = current.message)
-                is MatchesUiState.Content -> LazyColumn {
-                    items(current.matches, key = { it.id }) { match ->
-                        MatchListItem(
-                            match = match,
-                            onClick = onMatchClick,
+                is MatchesUiState.Error -> ErrorState(
+                    message = errorMessage(current.cause),
+                    onRetry = viewModel::retry,
+                )
+                is MatchesUiState.Content -> {
+                    if (current.matches.isEmpty()) {
+                        Text(
+                            text = stringResource(
+                                if (current.isFilterActive) R.string.matches_empty_filtered
+                                else R.string.matches_empty_day,
+                            ),
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .padding(24.dp),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodyLarge,
                         )
+                    } else {
+                        LazyColumn {
+                            items(current.matches, key = { it.id }) { match ->
+                                MatchListItem(match = match, onClick = onMatchClick)
+                            }
+                        }
                     }
                 }
             }
