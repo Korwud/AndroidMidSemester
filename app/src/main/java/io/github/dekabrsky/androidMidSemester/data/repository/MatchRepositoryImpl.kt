@@ -9,11 +9,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 import android.util.Log
+import io.github.dekabrsky.androidMidSemester.data.source.MatchesRemoteDataSource
 
 private const val TAG = "MATCH_CACHE"
 
 class MatchRepositoryImpl(
-    private val api: SStatsApi,
+    private val remoteSource: MatchesRemoteDataSource,
     private val cache: MatchesCache
 ) : MatchRepository {
 
@@ -28,7 +29,7 @@ class MatchRepositoryImpl(
                 return@withLock cached
             }
 
-            val matches = api.gamesOn(date.toString()).data.map { it.toMatch() }
+            val matches = remoteSource.matchesOn(date)
             cache.put(date, matches)
             Log.d(TAG, "Значение взято из API")
             matches
@@ -37,5 +38,5 @@ class MatchRepositoryImpl(
 
 
     override suspend fun match(id: Long): Match =
-        api.game(id).data?.toMatch() ?: throw NoSuchElementException("Матч $id не найден")
+        remoteSource.match(id)
 }
